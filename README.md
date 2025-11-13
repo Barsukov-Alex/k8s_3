@@ -187,3 +187,70 @@ barsukov@barsukov:~/k8s_3$ kubectl exec multitool-app -- curl 10.1.10.219:80
 <img src = "img/5.jpg" width = 100%>
 
 ### Задание 2.
+
+
+
+Создадим deployment-init.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx-app
+  name: nginx-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+      initContainers:
+      - name: init-nginx-svc
+        image: busybox
+        command: ['sh', '-c', 'until nslookup nginx-svc.default.svc.cluster.local; do echo waiting for nginx-svc; sleep 5; done;']
+```
+
+
+Nginx не стартует
+
+<img src = "img/6.jpg" width = 100%>
+
+
+
+Создадим Service nginx-svc.yaml и убедимся, что init запустился
+
+
+barsukov@barsukov:~/k8s_3$ nano nginx-svc.yaml
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-svc
+spec:
+  selector:
+    app: nginx
+  ports:
+  - name: http-port
+    port: 80
+    protocol: TCP
+    targetPort: 80
+```
+
+barsukov@barsukov:~/k8s_3$ kubectl apply -f nginx-svc.yaml 
+
+barsukov@barsukov:~/k8s_3$ kubectl get pods -o wide
+
+
+<img src = "img/7.jpg" width = 100%>
