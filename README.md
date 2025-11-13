@@ -45,8 +45,145 @@
 
 ### Задание 1.
 
+Создаем deployment.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multitool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multitool
+  template:
+    metadata:
+      labels:
+        app: multitool
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+      - name: multitool
+        image: wbitt/network-multitool:latest
+        ports:
+        - containerPort: 8080
+```
+
+Затем 
+
+barsukov@barsukov:~/k8s_3$ kubectl apply -f deployment.yaml
+
 Ошибка была связана с тем, что nginx и multitool по-умолчанию используют порт 80. multitool перенастроил на порт 8080.
 
 
+
+Добавляем в deployment.yaml 
+
+```
+env:
+        - name: HTTP_PORT
+          value: "7080"
+```
+
+
+Получаем
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multitool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multitool
+  template:
+    metadata:
+      labels:
+        app: multitool
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+      - name: multitool
+        image: wbitt/network-multitool:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: HTTP_PORT
+          value: "7080"
+```
+
+barsukov@barsukov:~/k8s_3$ kubectl apply -f deployment.yaml
+
+<img src = "img/1.jpg" width = 100%>
+
+Меняем количество реплик с 1 на 2
+
+<img src = "img/2.jpg" width = 100%>
+
+
+Создаем Service, который обеспечит доступ до реплик приложений из предыдущих пунктов
+
+root@DebianNew:~/.kube# nano deployment-svc.yaml
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: deployment-svc
+spec:
+  selector:
+    app: multitool
+  ports:
+  - name: for-nginx
+    port: 80
+    targetPort: 80
+  - name: for-multitool
+    port: 7080
+    targetPort: 7080
+```
+
+<img src = "img/3.jpg" width = 100%>
+
+Создаём отдельный Pod с приложением multitool и убеждаемся с помощью curl, что из пода есть доступ до приложений из предыдущих пунктов
+
+root@DebianNew:~/.kube# nano multitool-app.yaml
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: multitool
+  name: multitool-app
+  namespace: default
+spec:
+  containers:
+  - name: multitool
+    image: wbitt/network-multitool
+    ports:
+    - containerPort: 8080
+    env:
+      - name: HTTP_PORT
+        value: "7080"
+```
+
+<img src = "img/4.jpg" width = 100%>
+
+
+
+```
+barsukov@barsukov:~/k8s_3$ kubectl exec multitool-app -- curl 10.1.10.220:80 
+barsukov@barsukov:~/k8s_3$ kubectl exec multitool-app -- curl 10.1.10.219:80  
+```
+<img src = "img/5.jpg" width = 100%>
 
 ### Задание 2.
